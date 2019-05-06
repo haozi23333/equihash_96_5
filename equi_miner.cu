@@ -28,7 +28,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 #ifndef SAVEMEM
 #if RESTBITS == 4
 // can't save memory in such small buckets
-#define SAVEMEM 9/14
+#define SAVEMEM 1
 #elif RESTBITS >= 8
 // take advantage of law of large numbers (sum of 2^8 random numbers)
 // this reduces (200,9) memory to under 144MB, with negligible discarding
@@ -914,195 +914,24 @@ void compress_solution(const proof sol, uchar* csol) {
     }
 }
 
-//void solve(const char *tequihash_header,
-//           unsigned int tequihash_header_len,
-//           const char* nonce,
-//           unsigned int nonce_len,
-//           std::function<bool()> cancelf,
-//           std::function<void(const std::vector<uint32_t>&, size_t, const unsigned char*)> solutionf,
-//           std::function<void(void)> hashdonef,
-//           SOLVER_NAME& device_context) {
-//    int nthreads = 8192;
-//    equi eq(nthreads);
-//
-//    char headernonce[HEADERNONCELEN];
-//    u32 hdrlen = strlen(header);
-//    for (int i = 0; i < HEADERNONCELEN; i++) {
-//        if (i < 180) {
-//            headernonce[i] = hextobyte(tequihash_header[2*i]);
-//        } else {
-//            headernonce[i] = hextobyte(nonce[2*i]);
-//        }
-//    }
-//
-//
-//    checkCudaErrors(cudaSetDeviceFlags(cudaDeviceScheduleYield));
-//
-//    u32 *heap0, *heap1;
-//    checkCudaErrors(cudaMalloc((void**)&heap0, sizeof(digit0)));
-//    checkCudaErrors(cudaMalloc((void**)&heap1, sizeof(digit1)));
-//    for (u32 r=0; r < WK; r++)
-//        if ((r&1) == 0)
-//            eq.hta.trees0[r/2]  = (bucket0 *)(heap0 + r/2);
-//        else
-//            eq.hta.trees1[r/2]  = (bucket1 *)(heap1 + r/2);
-//
-//    checkCudaErrors(cudaMalloc((void**)&eq.nslots, 2 * NBUCKETS * sizeof(u32)));
-//    checkCudaErrors(cudaMemset((void*)eq.nslots, 0, 2 * NBUCKETS * sizeof(u32)));
-//    checkCudaErrors(cudaMalloc((void**)&eq.sols, MAXSOLS * sizeof(proof)));
-//
-//    equi *device_eq;
-//    checkCudaErrors(cudaMalloc((void**)&device_eq, sizeof(equi)));
-//
-//    cudaEvent_t start, stop;
-//    checkCudaErrors(cudaEventCreate(&start));
-//    checkCudaErrors(cudaEventCreate(&stop));
-//
-//
-//    proof sols[MAXSOLS];
-//    u32 sumnsols = 0;
-//    for (int r = 0; r < range; r++) {
-//        cudaEventRecord(start, NULL);
-////        ((u32 *)headernonce)[32] = htole32(nonce+r);
-//        eq.setheadernonce(headernonce, sizeof(headernonce));
-//        checkCudaErrors(cudaMemcpy(device_eq, &eq, sizeof(equi), cudaMemcpyHostToDevice));
-//        printf("Digit 0\n");
-//        digitH<<<nthreads/tpb,tpb >>>(device_eq);
-//        eq.showbsizes(0);
-//#if BUCKBITS == 16 && RESTBITS == 4 && defined XINTREE && defined(UNROLL)
-//        printf("Digit %d\n", 1);
-//    digit_1<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(1);
-//    printf("Digit %d\n", 2);
-//    digit2<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(2);
-//    printf("Digit %d\n", 3);
-//    digit3<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(3);
-//    printf("Digit %d\n", 4);
-//    digit4<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(4);
-//    printf("Digit %d\n", 5);
-//    digit5<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(5);
-//    printf("Digit %d\n", 6);
-//    digit6<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(6);
-//    printf("Digit %d\n", 7);
-//    digit7<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(7);
-//    printf("Digit %d\n", 8);
-//    digit8<<<nthreads/tpb,tpb >>>(device_eq);
-//    eq.showbsizes(8);
-//#else
-//        for (u32 r=1; r < WK; r++) {
-//            printf("Digit %d\n", r);
-//            r&1 ?  digitO<<<nthreads/tpb,tpb >>>(device_eq, r)
-//                :  digitE<<<nthreads/tpb,tpb >>>(device_eq, r);
-//            eq.showbsizes(r);
-//        }
-//#endif
-//        printf("Digit %d\n", WK);
-//        digitK<<<nthreads/tpb,tpb >>>(device_eq);
-//
-//        checkCudaErrors(cudaMemcpy(&eq, device_eq, sizeof(equi), cudaMemcpyDeviceToHost));
-//        u32 maxsols = min(MAXSOLS, eq.nsols);
-//        checkCudaErrors(cudaMemcpy(sols, eq.sols, maxsols * sizeof(proof), cudaMemcpyDeviceToHost));
-//        cudaEventRecord(stop, NULL);
-//        cudaEventSynchronize(stop);
-//        float duration;
-//        cudaEventElapsedTime(&duration, start, stop);
-//        printf("%d rounds completed in %.3f seconds.\n", WK, duration / 1000.0f);
-//
-//        u32 s, nsols, ndupes;
-//        for (s = nsols = ndupes = 0; s < maxsols; s++) {
-//            if (duped(sols[s])) {
-//                ndupes++;
-//                continue;
-//            }
-//            nsols++;
-//            std::vector<uint32_t> index_vector(PROOFSIZE);
-//            for (u32 i = 0; i < PROOFSIZE; i++) {
-//                index_vector[i] = sols[s][i];
-//            }
-//
-//            solutionf(index_vector, DIGITBITS, nullptr);
-//            if (cancelf()) return
-//        }
-//        printf("%d solutions %d dupes\n", nsols, ndupes);
-//        sumnsols += nsols;
-//    }
-//    checkCudaErrors(cudaFree(eq.nslots));
-//    checkCudaErrors(cudaFree(eq.sols));
-//    checkCudaErrors(cudaFree(eq.hta.trees0[0]));
-//    checkCudaErrors(cudaFree(eq.hta.trees1[0]));
-//    hashdonef();
-//}
-
 
 int main(int argc, char **argv) {
     int nthreads = 8192;
-    int nonce = 0;
     int tpb = 0;
-    int range = 1;
-    bool showsol = false;
-    bool compress_sol = false;
-    const char *header = "";
-    const char *hex = "";
-    int c;
-    while ((c = getopt (argc, argv, "h:n:r:t:p:x:sc")) != -1) {
-        switch (c) {
-            case 'h':
-                header = optarg;
-                break;
-            case 'n':
-                nonce = atoi(optarg);
-                break;
-            case 't':
-                nthreads = atoi(optarg);
-                break;
-            case 'p':
-                tpb = atoi(optarg);
-                break;
-            case 'r':
-                range = atoi(optarg);
-                break;
-            case 's':
-                showsol = true;
-                break;
-            case 'x':
-                hex = optarg;
-                break;
-            case 'c':
-                compress_sol = true;
-                break;
-        }
-    }
-    if (!tpb) // if not set, then default threads per block to roughly square root of threads
+    // hex 长度为  212 字符
+    const char *hex = "00000020918c6207da39bb21aaccce67512ae6cc0504d47c8dde4cd261c1413cab821b042ae266acd1472f31e4ee97991fef522ad16b09b60f83d1c760a12d34ccc5149b9727c049f28e104afcb471f1322b4d55a594fc444cb7759a86fecf9815f61046ca12c03357ed07000246c15c25be051d2b85b83b7c0a9e83eae990675a447f655171ac664fa98ce7f47941867124a598cb231ecad793464b2be2b34adbdf759a3a7653bfe296567488714ee733c7b92600008a733d3a4242651dbbc2ac697c8ccaecb787b7e43e05a7bd046543f00009";
+    if (!tpb)
         for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
 
-    printf("Looking for wagner-tree on (\"%s\",%d", header, nonce);
-    if (range > 1)
-        printf("-%d", nonce+range-1);
     printf(") with %d %d-bits digits and %d threads (%d per block)\n", NDIGITS, DIGITBITS, nthreads, tpb);
 
     char headernonce[HEADERNONCELEN];
-    u32 hdrlen = strlen(header);
-    if (*hex) {
-        assert(strlen(hex) == 2 * HEADERNONCELEN);
-        for (int i = 0; i < HEADERNONCELEN; i++)
-            headernonce[i] = hextobyte(&hex[2*i]);
-    } else {
-        memcpy(headernonce, header, sizeof(char) * 212);
-        memset(headernonce+(hdrlen), 0, 32);
-        memcpy(headernonce + hdrlen, "00008a733d3a4242651dbbc2ac697c8ccaecb787b7e43e05a7bd046543f00009", 32);
-    }
+    for (int i = 0; i < HEADERNONCELEN; i++)
+        headernonce[i] = hextobyte(&hex[2*i]);
 
     int count = 0;
     while (true) {
         equi eq(nthreads);
-
-//        checkCudaErrors(cudaSetDeviceFlags(cudaDeviceScheduleYield));
 
         u32 *heap0, *heap1;
         checkCudaErrors(cudaMalloc((void**)&heap0, sizeof(digit0)));
@@ -1127,12 +956,9 @@ int main(int argc, char **argv) {
 
         proof sols[MAXSOLS];
         u32 sumnsols = 0;
-        for (int r = 0; r < range; r++) {
             cudaEventRecord(start, NULL);
-//        ((u32 *)headernonce)[32] = htole32(nonce+r);
             eq.setheadernonce(headernonce, sizeof(headernonce));
             checkCudaErrors(cudaMemcpy(device_eq, &eq, sizeof(equi), cudaMemcpyHostToDevice));
-//            printf("Digit 0\n");
             digitH<<<nthreads/tpb,tpb >>>(device_eq);
             eq.showbsizes(0);
 #if BUCKBITS == 16 && RESTBITS == 4 && defined XINTREE && defined(UNROLL)
@@ -1168,17 +994,11 @@ int main(int argc, char **argv) {
                 eq.showbsizes(r);
             }
 #endif
-//            printf("Digit %d\n", WK);
             digitK<<<nthreads/tpb,tpb >>>(device_eq);
 
             checkCudaErrors(cudaMemcpy(&eq, device_eq, sizeof(equi), cudaMemcpyDeviceToHost));
             u32 maxsols = min(MAXSOLS, eq.nsols);
             checkCudaErrors(cudaMemcpy(sols, eq.sols, maxsols * sizeof(proof), cudaMemcpyDeviceToHost));
-//            cudaEventRecord(stop, NULL);
-//            cudaEventSynchronize(stop);
-//            float duration;
-//            cudaEventElapsedTime(&duration, start, stop);
-//            printf("%d rounds completed in %.3f seconds.\n", WK, duration / 1000.0f);
 
             u32 s, nsols, ndupes;
             for (s = nsols = ndupes = 0; s < maxsols; s++) {
@@ -1187,25 +1007,8 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 nsols++;
-                if (showsol) {
-//                    printf("Solution");
-                    if (compress_sol) {
-                        printf(" ");
-                        uchar csol[COMPRESSED_SOL_SIZE];
-                        compress_solution(sols[s], csol);
-                        for (u32 i = 0; i < COMPRESSED_SOL_SIZE; ++i) {
-                            printf("%02hhx", csol[i]);
-                        }
-                    } else {
-                        for (int i = 0; i < PROOFSIZE; i++)
-                            printf(" %jx", (uintmax_t)sols[s][i]);
-                    }
-                    printf("\n");
-                }
                 sumnsols += nsols;
             }
-//            printf("%d solutions %d dupes\n", nsols, ndupes);
-        }
         checkCudaErrors(cudaFree(eq.nslots));
         checkCudaErrors(cudaFree(eq.sols));
         checkCudaErrors(cudaFree(eq.hta.trees0[0]));
@@ -1213,6 +1016,4 @@ int main(int argc, char **argv) {
 
         printf("总第 %d  %d\n", count++, sumnsols);
     }
-//    printf("%d total solutions\n", sumnsols);
-    return 0;
 }
